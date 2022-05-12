@@ -26,7 +26,7 @@ import (
 	"text/template"
 )
 
-func createCodeGenerator(namespace string) *template.Template {
+func createJsCodeGenerator(namespace string) *template.Template {
 	jsPrefix := ""
 	classPrefix := ""
 	cppPrefix := ""
@@ -77,12 +77,12 @@ func createCodeGenerator(namespace string) *template.Template {
 		"classprefix": func() string { return classPrefix },
 	}
 
-	codegen := template.New("Settings").Funcs(customExtensions)
+	codegen := template.New("beamsplitter").Funcs(customExtensions)
 	return template.Must(codegen.ParseFiles("javascript.template"))
 }
 
 func EmitJavaScript(definitions []Scope, namespace string, outputFolder string) {
-	codegen := createCodeGenerator(namespace)
+	codegen := createJsCodeGenerator(namespace)
 	{
 		path := filepath.Join(outputFolder, "jsbindings_generated.cpp")
 		file, err := os.Create(path)
@@ -173,7 +173,7 @@ func EditTypeScript(definitions []Scope, namespace string, folder string) {
 	}
 	file.WriteString("// " + CodelineMarker + "\n")
 
-	codegen := createCodeGenerator(namespace)
+	codegen := createJsCodeGenerator(namespace)
 	for _, definition := range definitions {
 		switch definition.(type) {
 		case *StructDefinition:

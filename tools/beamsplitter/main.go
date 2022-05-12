@@ -68,6 +68,10 @@ func main() {
 	EmitJavaScript(definitions, "View", jsfolder)
 	EditTypeScript(definitions, "View", jsfolder)
 
+	javafolder := filepath.FromSlash("com/google/android/filament")
+	javafolder = filepath.Join(root, "android/filament-android/src/main/java", javafolder)
+	EditJava(definitions, "View", javafolder)
+
 	fmt.Print(`
 Note that this tool does not generate bindings for setter methods on
 filament::View. If you added or renamed one of the setter methods, you

@@ -1,0 +1,17 @@
+{{ define "Struct" }}
+    class {{ .BaseName }} {
+    {{- range $index, $field := .Fields}}
+        {{ $field.Type }} {{ $field.Name }};
+    {{- end }}
+    };
+{{ end }}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+{{ define "Enum" }}
+    enum {{ .BaseName }} {
+    {{- range .Values}}
+        {{ . }},
+    {{- end }}
+    };
+{{ end }}

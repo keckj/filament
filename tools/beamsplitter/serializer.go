@@ -57,7 +57,7 @@ func EmitSerializer(definitions []Scope, outputFolder string) {
 		},
 	}
 
-	codegen := template.New("Settings").Funcs(customExtensions)
+	codegen := template.New("beamsplitter").Funcs(customExtensions)
 	codegen = template.Must(codegen.ParseFiles("serializer.template"))
 
 	{
