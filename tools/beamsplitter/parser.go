@@ -21,6 +21,7 @@ import (
 	"log"
 	"os"
 	"regexp"
+	"sort"
 	"strings"
 )
 
@@ -58,15 +59,22 @@ type StructField struct {
 }
 
 type StructDefinition struct {
-	StructName string
-	Qualifier  string
-	Fields     []StructField
+	StructName  string
+	Qualifier   string
+	Fields      []StructField
+	Description string
+}
+
+type EnumValue struct {
+	Description string
+	Name        string
 }
 
 type EnumDefinition struct {
-	EnumName  string
-	Qualifier string
-	Values    []string
+	EnumName    string
+	Qualifier   string
+	Values      []EnumValue
+	Description string
 }
 
 type generalScope struct{}
@@ -81,13 +89,31 @@ func (defn generalScope) BaseName() string      { return "" }
 func (defn generalScope) QualifiedName() string { return "" }
 
 type parserContext struct {
-	stack         []Scope
-	definitions   []Scope
-	insideComment bool
-	cppTokenizer  *regexp.Regexp
-	floatMatcher  *regexp.Regexp
-	vectorMatcher *regexp.Regexp
-	fieldParser   *regexp.Regexp
+	stack           []Scope
+	definitions     []Scope
+	insideComment   bool
+	blockComment    map[int]string // maps from a line number to an entire line of text
+	cppTokenizer    *regexp.Regexp
+	floatMatcher    *regexp.Regexp
+	vectorMatcher   *regexp.Regexp
+	fieldParser     *regexp.Regexp
+	fieldDescParser *regexp.Regexp
+}
+
+// This is a bit janky, it glues together all the codelines that formulate the most recent
+// block comment. These codelines are stored in a map only because they are gathered while
+// parsing individual tokens, rather than at the codeline level. TODO: make this better
+func (context *parserContext) getBlockComment() string {
+	lineNumbers := make([]int, 0, len(context.blockComment))
+	for k := range context.blockComment {
+		lineNumbers = append(lineNumbers, k)
+	}
+	sort.Ints(lineNumbers)
+	result := ""
+	for _, k := range lineNumbers {
+		result += context.blockComment[k] + "\n"
+	}
+	return result
 }
 
 // https://github.com/google/re2/wiki/Syntax
@@ -102,6 +128,8 @@ func (context *parserContext) compileRegexps() {
 	const kFieldDesc = `(?://\s*\!\<\s*(?P<description>.*))?`
 	context.fieldParser = regexp.MustCompile(
 		`^\s*` + kFieldType + `\s+` + kFieldName + `\s*=\s*` + kFieldValue + `\s*;\s*` + kFieldDesc)
+
+	context.fieldDescParser = regexp.MustCompile(`(?://\s*\!\<\s*(.*))`)
 }
 
 func (context parserContext) generateQualifier() string {
@@ -182,11 +210,11 @@ func (context parserContext) distillValue(cppvalue string, lineNumber int) strin
 	return cppvalue
 }
 
-func (context *parserContext) scanCppCodeline(codeline string, lineNumber int) {
+func (context *parserContext) scanCppCodeline(originalCodeline string, lineNumber int) {
 	if context.cppTokenizer == nil {
 		context.compileRegexps()
 	}
-	codeline = context.cppTokenizer.ReplaceAllString(codeline, " $1 ")
+	codeline := context.cppTokenizer.ReplaceAllString(originalCodeline, " $1 ")
 	scanner := bufio.NewScanner(strings.NewReader(codeline))
 	scanner.Split(bufio.ScanWords)
 	inPlaceDefinition := ""
@@ -247,10 +275,16 @@ func (context *parserContext) scanCppCodeline(codeline string, lineNumber int) {
 			return
 		case token == "/*":
 			context.insideComment = true
+			context.blockComment = make(map[int]string)
+			context.blockComment[lineNumber] = originalCodeline
 		case token == "*/":
+			if !context.insideComment {
+				log.Fatalf("%d: strange comment", lineNumber)
+			}
+			context.blockComment[lineNumber] = originalCodeline
 			context.insideComment = false
 		case context.insideComment:
-			// Do nothing inside a comment.
+			context.blockComment[lineNumber] = originalCodeline
 		case token == ";":
 			// Do nothing.
 		case token == "{":
@@ -265,6 +299,7 @@ func (context *parserContext) scanCppCodeline(codeline string, lineNumber int) {
 				context.definitions = append(context.definitions, defn)
 			}
 			context.stack = context.stack[:depth]
+			context.blockComment = make(map[int]string)
 		case token == "struct":
 			if !scanner.Scan() {
 				log.Fatalf("%d: bizarre struct", lineNumber)
@@ -272,7 +307,13 @@ func (context *parserContext) scanCppCodeline(codeline string, lineNumber int) {
 			if !strings.Contains(codeline, "{") || strings.Contains(codeline, "}") {
 				log.Fatalf("%d: bad formatting", lineNumber)
 			}
-			stackEntry := StructDefinition{scanner.Text(), context.generateQualifier(), nil}
+			stackEntry := StructDefinition{
+				StructName: scanner.Text(),
+				Qualifier:  context.generateQualifier(),
+			}
+			if len(context.blockComment) > 0 {
+				stackEntry.Description = context.getBlockComment()
+			}
 			context.stack = append(context.stack, &stackEntry)
 			return
 		case token == "enum":
@@ -282,7 +323,13 @@ func (context *parserContext) scanCppCodeline(codeline string, lineNumber int) {
 			if !strings.Contains(codeline, "{") || strings.Contains(codeline, "}") {
 				log.Fatalf("%d: bad formatting", lineNumber)
 			}
-			stackEntry := EnumDefinition{scanner.Text(), context.generateQualifier(), nil}
+			stackEntry := EnumDefinition{
+				EnumName:  scanner.Text(),
+				Qualifier: context.generateQualifier(),
+			}
+			if len(context.blockComment) > 0 {
+				stackEntry.Description = context.getBlockComment()
+			}
 			context.stack = append(context.stack, &stackEntry)
 			return
 		case depth > 0:
@@ -294,7 +341,13 @@ func (context *parserContext) scanCppCodeline(codeline string, lineNumber int) {
 				if strings.Contains(codeline, "=") {
 					log.Fatalf("%d: custom values are not allowed", lineNumber)
 				}
-				defn.Values = append(defn.Values, strings.Trim(token, ","))
+				value := EnumValue{
+					Name: strings.Trim(token, ","),
+				}
+				if matches := context.fieldDescParser.FindStringSubmatch(codeline); matches != nil {
+					value.Description = matches[1]
+				}
+				defn.Values = append(defn.Values, value)
 				return
 			}
 		}

@@ -47,7 +47,7 @@ EMSCRIPTEN_BINDINGS(jsenums_generated) {
 {{- $enum_name := .QualifiedName }}
 enum_<{{ cprefix }}{{ $enum_name }}>("{{ jsprefix }}{{ qualifiedtype .QualifiedName }}")
 {{- range .Values}}
-    .value("{{ . }}", {{ cprefix }}{{ $enum_name }}::{{ . }})
+    .value("{{ .Name }}", {{ cprefix }}{{ $enum_name }}::{{ .Name }})
 {{- end }}
     ;
 {{end}}
@@ -101,7 +101,7 @@ export interface {{ jsprefix }}{{ qualifiedtype .QualifiedName }} {
 {{define "TsEnum"}}
 export enum {{ jsprefix }}{{ qualifiedtype .QualifiedName }} {
 {{- range .Values}}
-    {{ . }},
+    {{ .Name }},
 {{- end }}
 }
 {{end}}
