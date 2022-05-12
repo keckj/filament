@@ -26,13 +26,27 @@ import (
 	"text/template"
 )
 
-func createJavaCodeGenerator() *template.Template {
+func createJavaCodeGenerator() func(*os.File, string, Scope) {
 	customExtensions := template.FuncMap{
-		//
+		"javadoc": func(desc string, depth int) string {
+			return "// " + desc
+		},
+		"java_type": func(cpptype string) string {
+			return cpptype
+		},
+		"java_value": func(cppval string) string {
+			return cppval
+		},
 	}
 
-	codegen := template.New("beamsplitter").Funcs(customExtensions)
-	return template.Must(codegen.ParseFiles("java.template"))
+	templ := template.New("beamsplitter").Funcs(customExtensions)
+	templ = template.Must(templ.ParseFiles("java.template"))
+	return func(file *os.File, section string, definition Scope) {
+		err := templ.ExecuteTemplate(file, "CppStructReader", definition)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
 }
 
 func EditJava(definitions []Scope, classname string, folder string) {
@@ -70,13 +84,13 @@ func EditJava(definitions []Scope, classname string, folder string) {
 	}
 	file.WriteString("    // " + CodelineMarker + "\n")
 
-	codegen := createJavaCodeGenerator()
+	generate := createJavaCodeGenerator()
 	for _, definition := range definitions {
 		switch definition.(type) {
 		case *StructDefinition:
-			codegen.ExecuteTemplate(file, "Struct", definition)
+			generate(file, "Struct", definition)
 		case *EnumDefinition:
-			codegen.ExecuteTemplate(file, "Enum", definition)
+			generate(file, "Enum", definition)
 		}
 	}
 

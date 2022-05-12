@@ -60,6 +60,13 @@ func EmitSerializer(definitions []Scope, outputFolder string) {
 	codegen := template.New("beamsplitter").Funcs(customExtensions)
 	codegen = template.Must(codegen.ParseFiles("serializer.template"))
 
+	generate := func(file *os.File, section string, definition Scope) {
+		err := codegen.ExecuteTemplate(file, "CppStructReader", definition)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
+
 	{
 		path := filepath.Join(outputFolder, "Settings_generated.cpp")
 		file, err := os.Create(path)
@@ -68,18 +75,18 @@ func EmitSerializer(definitions []Scope, outputFolder string) {
 		}
 		defer file.Close()
 		defer fmt.Println("Generated " + path)
-		codegen.ExecuteTemplate(file, "CppHeader", nil)
+		generate(file, "CppHeader", nil)
 		for _, definition := range definitions {
 			switch definition.(type) {
 			case *StructDefinition:
-				codegen.ExecuteTemplate(file, "CppStructReader", definition)
-				codegen.ExecuteTemplate(file, "CppStructWriter", definition)
+				generate(file, "CppStructReader", definition)
+				generate(file, "CppStructWriter", definition)
 			case *EnumDefinition:
-				codegen.ExecuteTemplate(file, "CppEnumReader", definition)
-				codegen.ExecuteTemplate(file, "CppEnumWriter", definition)
+				generate(file, "CppEnumReader", definition)
+				generate(file, "CppEnumWriter", definition)
 			}
 		}
-		codegen.ExecuteTemplate(file, "CppFooter", nil)
+		generate(file, "CppFooter", nil)
 	}
 	{
 		path := filepath.Join(outputFolder, "Settings_generated.h")
@@ -89,15 +96,15 @@ func EmitSerializer(definitions []Scope, outputFolder string) {
 		}
 		defer file.Close()
 		defer fmt.Println("Generated " + path)
-		codegen.ExecuteTemplate(file, "HppHeader", nil)
+		generate(file, "HppHeader", nil)
 		for _, definition := range definitions {
 			switch definition.(type) {
 			case *StructDefinition:
-				codegen.ExecuteTemplate(file, "HppStruct", definition)
+				generate(file, "HppStruct", definition)
 			case *EnumDefinition:
-				codegen.ExecuteTemplate(file, "HppEnum", definition)
+				generate(file, "HppEnum", definition)
 			}
 		}
-		codegen.ExecuteTemplate(file, "HppFooter", nil)
+		generate(file, "HppFooter", nil)
 	}
 }

@@ -26,7 +26,7 @@ import (
 	"text/template"
 )
 
-func createJsCodeGenerator(namespace string) *template.Template {
+func createJsCodeGenerator(namespace string) func(*os.File, string, Scope) {
 	jsPrefix := ""
 	classPrefix := ""
 	cppPrefix := ""
@@ -77,12 +77,18 @@ func createJsCodeGenerator(namespace string) *template.Template {
 		"classprefix": func() string { return classPrefix },
 	}
 
-	codegen := template.New("beamsplitter").Funcs(customExtensions)
-	return template.Must(codegen.ParseFiles("javascript.template"))
+	templ := template.New("beamsplitter").Funcs(customExtensions)
+	templ = template.Must(templ.ParseFiles("javascript.template"))
+	return func(file *os.File, section string, definition Scope) {
+		err := templ.ExecuteTemplate(file, "CppStructReader", definition)
+		if err != nil {
+			log.Fatal(err.Error())
+		}
+	}
 }
 
 func EmitJavaScript(definitions []Scope, namespace string, outputFolder string) {
-	codegen := createJsCodeGenerator(namespace)
+	generate := createJsCodeGenerator(namespace)
 	{
 		path := filepath.Join(outputFolder, "jsbindings_generated.cpp")
 		file, err := os.Create(path)
@@ -91,14 +97,16 @@ func EmitJavaScript(definitions []Scope, namespace string, outputFolder string) 
 		}
 		defer file.Close()
 		defer fmt.Println("Generated " + path)
-		codegen.ExecuteTemplate(file, "JsBindingsHeader", nil)
+
+		generate(file, "JsBindingsHeader", nil)
+
 		for _, definition := range definitions {
 			switch definition.(type) {
 			case *StructDefinition:
-				codegen.ExecuteTemplate(file, "JsBindingsStruct", definition)
+				generate(file, "JsBindingsStruct", definition)
 			}
 		}
-		codegen.ExecuteTemplate(file, "JsBindingsFooter", nil)
+		generate(file, "JsBindingsFooter", nil)
 	}
 	{
 		path := filepath.Join(outputFolder, "jsenums_generated.cpp")
@@ -108,14 +116,17 @@ func EmitJavaScript(definitions []Scope, namespace string, outputFolder string) 
 		}
 		defer file.Close()
 		defer fmt.Println("Generated " + path)
-		codegen.ExecuteTemplate(file, "JsEnumsHeader", nil)
+
+		generate(file, "JsEnumsHeader", nil)
+
 		for _, definition := range definitions {
 			switch definition.(type) {
 			case *EnumDefinition:
-				codegen.ExecuteTemplate(file, "JsEnum", definition)
+				generate(file, "JsEnum", definition)
 			}
 		}
-		codegen.ExecuteTemplate(file, "JsEnumsFooter", nil)
+
+		generate(file, "JsEnumsFooter", nil)
 	}
 	{
 		path := filepath.Join(outputFolder, "extensions_generated.js")
@@ -125,14 +136,16 @@ func EmitJavaScript(definitions []Scope, namespace string, outputFolder string) 
 		}
 		defer file.Close()
 		defer fmt.Println("Generated " + path)
-		codegen.ExecuteTemplate(file, "JsExtensionsHeader", nil)
+
+		generate(file, "JsExtensionsHeader", nil)
+
 		for _, definition := range definitions {
 			switch definition.(type) {
 			case *StructDefinition:
-				codegen.ExecuteTemplate(file, "JsExtension", definition)
+				generate(file, "JsExtension", definition)
 			}
 		}
-		codegen.ExecuteTemplate(file, "JsExtensionsFooter", nil)
+		generate(file, "JsExtensionsFooter", nil)
 	}
 }
 
@@ -173,13 +186,13 @@ func EditTypeScript(definitions []Scope, namespace string, folder string) {
 	}
 	file.WriteString("// " + CodelineMarker + "\n")
 
-	codegen := createJsCodeGenerator(namespace)
+	generate := createJsCodeGenerator(namespace)
 	for _, definition := range definitions {
 		switch definition.(type) {
 		case *StructDefinition:
-			codegen.ExecuteTemplate(file, "TsStruct", definition)
+			generate(file, "TsStruct", definition)
 		case *EnumDefinition:
-			codegen.ExecuteTemplate(file, "TsEnum", definition)
+			generate(file, "TsEnum", definition)
 		}
 	}
 }

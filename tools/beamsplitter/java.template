@@ -1,7 +1,9 @@
 {{ define "Struct" }}
-    class {{ .BaseName }} {
+    {{ javadoc .Description  1 }}
+    public static class {{ .BaseName }} {
     {{- range $index, $field := .Fields}}
-        {{ $field.Type }} {{ $field.Name }};
+        {{ javadoc .Description  1 }}
+        public {{ java_type $field.Type }} {{ $field.Name }} = {{ java_value $field.DefaultValue}};
     {{- end }}
     };
 {{ end }}
@@ -9,9 +11,11 @@
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 {{ define "Enum" }}
-    enum {{ .BaseName }} {
+    {{ javadoc .Description  1 }}
+    public enum {{ .BaseName }} {
     {{- range .Values}}
-        {{ . }},
+        {{ javadoc .Description 2 }}
+        {{ .Name }},
     {{- end }}
     };
 {{ end }}

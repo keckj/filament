@@ -62,11 +62,11 @@ func main() {
 		}
 	}
 
-	EmitSerializer(definitions, filepath.Join(root, "libs", "viewer", "src"))
+	// EmitSerializer(definitions, filepath.Join(root, "libs", "viewer", "src"))
 
-	jsfolder := filepath.Join(root, "web", "filament-js")
-	EmitJavaScript(definitions, "View", jsfolder)
-	EditTypeScript(definitions, "View", jsfolder)
+	// jsfolder := filepath.Join(root, "web", "filament-js")
+	// EmitJavaScript(definitions, "View", jsfolder)
+	// EditTypeScript(definitions, "View", jsfolder)
 
 	javafolder := filepath.FromSlash("com/google/android/filament")
 	javafolder = filepath.Join(root, "android/filament-android/src/main/java", javafolder)
