@@ -284,7 +284,7 @@ if (WIN32)
 endif()
 
 if (LINUX)
-    option(USE_STATIC_LIBCXX "Link against the static runtime libraries." ON)
+    option(USE_STATIC_LIBCXX "Link against the static runtime libraries." OFF)
     if (${USE_STATIC_LIBCXX})
         set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
         link_libraries("-static-libgcc -static-libstdc++")
