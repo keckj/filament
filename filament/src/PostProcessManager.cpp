@@ -1118,10 +1118,8 @@ FrameGraphId<FrameGraphTexture> PostProcessManager::gaussianBlurPass(FrameGraph&
                 commitAndRender(hwTempRT, separableGaussianBlur, driver);
 
                 // vertical pass
-                auto width = outDesc.width;
-                auto height = outDesc.height;
-                assert_invariant(width == hwOutRT.params.viewport.width);
-                assert_invariant(height == hwOutRT.params.viewport.height);
+                assert_invariant(outDesc.width == hwOutRT.params.viewport.width);
+                assert_invariant(outDesc.height == hwOutRT.params.viewport.height);
 
                 mi->setParameter("source", hwTemp, {
                         .filterMag = SamplerMagFilter::LINEAR,

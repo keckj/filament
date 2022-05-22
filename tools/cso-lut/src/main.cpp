@@ -176,7 +176,7 @@ static UTILS_UNUSED float sphericalCapsIntersection(float cosCap1, float cosCap2
         return 0.0f;
     }
 
-    float delta = abs(r1 - r2);
+    float delta = std::abs(r1 - r2);
     float x = 1.0f - saturate((d - delta) / max(r1 + r2 - delta, 1e-5f));
     // simplified smoothstep()
     float area = sq(x) * (-2.0f * x + 3.0f);
