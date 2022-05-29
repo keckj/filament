@@ -160,7 +160,7 @@ static size_t fileSize(int fd) {
 namespace filamesh {
 
 MeshReader::Mesh MeshReader::loadMeshFromFile(filament::Engine* engine, const utils::Path& path,
-        MaterialRegistry& materials) {
+        MaterialRegistry& materials, size_t ninstances) {
 
     Mesh mesh;
 
@@ -176,7 +176,7 @@ MeshReader::Mesh MeshReader::loadMeshFromFile(filament::Engine* engine, const ut
         p += sizeof(MAGICID);
 
         if (!strncmp(MAGICID, magic, 8)) {
-            mesh = loadMeshFromBuffer(engine, data, nullptr, nullptr, materials);
+            mesh = loadMeshFromBuffer(engine, data, nullptr, nullptr, materials, ninstances);
         }
 
         Fence::waitAndDestroy(engine->createFence());
@@ -189,15 +189,15 @@ MeshReader::Mesh MeshReader::loadMeshFromFile(filament::Engine* engine, const ut
 
 MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
         void const* data, Callback destructor, void* user,
-        MaterialInstance* defaultMaterial) {
+        MaterialInstance* defaultMaterial, size_t ninstances) {
     MaterialRegistry reg;
     reg.registerMaterialInstance(utils::CString(DEFAULT_MATERIAL), defaultMaterial);
-    return loadMeshFromBuffer(engine, data, destructor, user, reg);
+    return loadMeshFromBuffer(engine, data, destructor, user, reg, ninstances);
 }
 
 MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
         void const* data, Callback destructor, void* user,
-        MaterialRegistry& materials) {
+        MaterialRegistry& materials, size_t ninstances) {
     const uint8_t* p = (const uint8_t*) data;
     if (strncmp(MAGICID, (const char *) p, 8)) {
         utils::slog.e << "Magic string not found." << utils::io::endl;
@@ -379,6 +379,8 @@ MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
             builder.material(i, mat);
         }
     }
+
+    builder.instances(ninstances);
     builder.build(*engine, mesh.renderable);
 
     return mesh;

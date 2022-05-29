@@ -1803,9 +1803,11 @@ void VulkanDriver::draw(PipelineState pipelineState, Handle<HwRenderPrimitive> r
 
             if (UTILS_UNLIKELY(texture->getPrimaryImageLayout() == VK_IMAGE_LAYOUT_UNDEFINED)) {
 #ifndef NDEBUG
-                utils::slog.w << "Uninitialized texture bound to '" << sampler.name.c_str() << "'";
-                utils::slog.w << " in material '" << program->name.c_str() << "'";
-                utils::slog.w << " at binding point " << +bindingPoint << utils::io::endl;
+                if (sampler.name != "light_ssr") {
+                    utils::slog.w << "Uninitialized texture bound to '" << sampler.name.c_str() << "'";
+                    utils::slog.w << " in material '" << program->name.c_str() << "'";
+                    utils::slog.w << " at binding point " << +bindingPoint << utils::io::endl;
+                }
 #endif
                 texture = mContext.emptyTexture;
             }
