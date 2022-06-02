@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#include <set>
+
 #include "VulkanContext.h"
 #include "VulkanHandles.h"
 #include "VulkanMemory.h"
@@ -64,6 +66,31 @@ void VulkanContext::selectPhysicalDevice() {
     result = vkEnumeratePhysicalDevices(instance, &physicalDeviceCount,
             physicalDevices.data());
     ASSERT_POSTCONDITION(result == VK_SUCCESS, "vkEnumeratePhysicalDevices error.");
+        
+    // sort devices 
+    //     0x10DE - NVIDIA
+    //     0x1002 - AMD
+    //     0x106B - APPLE
+    //     0x8086 - INTEL
+    //     0x1010 - ImgTec
+    //     0x13B5 - ARM
+    //     0x5143 - Qualcomm
+    const std::set<int> low_priority_vendors = { 0x8086 };
+    std::sort(physicalDevices.begin(), physicalDevices.end(), 
+            [&](const VkPhysicalDevice& a, const VkPhysicalDevice &b) -> bool { 
+                int ap(0), bp(0);
+                VkPhysicalDeviceProperties props;
+                
+                vkGetPhysicalDeviceProperties(a, &props);
+                if (low_priority_vendors.count(props.vendorID)) { ap = 1; }
+
+                vkGetPhysicalDeviceProperties(b, &props);
+                if (low_priority_vendors.count(props.vendorID)) { bp = 1; }
+
+                return ap < bp;
+            }
+        );
+
     for (uint32_t i = 0; i < physicalDeviceCount; ++i) {
         physicalDevice = physicalDevices[i];
         vkGetPhysicalDeviceProperties(physicalDevice, &physicalDeviceProperties);
