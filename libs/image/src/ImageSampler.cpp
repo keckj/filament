@@ -38,7 +38,7 @@ struct FilterFunction {
     bool rejectExternalSamples = true;
 };
 
-constexpr float M_PIf = float(filament::math::F_PI);
+/*constexpr float M_PIf = float(filament::math::F_PI);*/
 
 const FilterFunction Box {
     .fn = [](float t) { return t <= 0.5f ? 1.0f : 0.0f; },

@@ -28,6 +28,7 @@
 
 #include <algorithm>
 #include <memory>
+#include <array>
 
 #if defined(__linux__)
 
