@@ -32,7 +32,7 @@ int getVertexIndex() {
 /** @public-api */
 int getInstanceIndex() {
 #if defined(TARGET_METAL_ENVIRONMENT) || defined(TARGET_VULKAN_ENVIRONMENT)
-    return gl_InstanceIndex;
+    return gl_InstanceIndex - 1;
 #else
     return gl_InstanceID;
 #endif
