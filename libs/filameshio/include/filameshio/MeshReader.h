@@ -76,9 +76,10 @@ public:
          struct MaterialRegistryImpl;
          MaterialRegistryImpl* mImpl;
     };
-
+        
+    template <size_t RenderableInstances=1>
     struct Mesh {
-        utils::Entity renderable;
+        utils::Entity renderables[RenderableInstances];
         filament::VertexBuffer* vertexBuffer = nullptr;
         filament::IndexBuffer* indexBuffer = nullptr;
     };
@@ -90,7 +91,8 @@ public:
      * used instead. The default material can be overridden by adding a material
      * named "DefaultMaterial" to the registry.
      */
-    static Mesh loadMeshFromFile(filament::Engine* engine,
+    template <size_t RenderableInstances=1>
+    static void loadMeshFromFile(Mesh<RenderableInstances>& mesh, filament::Engine* engine,
             const utils::Path& path,
             MaterialRegistry& materials,
             size_t ninstances=1);
@@ -102,7 +104,9 @@ public:
      * used instead. The default material can be overridden by adding a material
      * named "DefaultMaterial" to the registry.
      */
-    static Mesh loadMeshFromBuffer(filament::Engine* engine,
+    template <size_t RenderableInstances=1>
+    static void loadMeshFromBuffer(Mesh<RenderableInstances>& mesh, 
+            filament::Engine* engine,
             void const* data, Callback destructor, void* user,
             MaterialRegistry& materials,
             size_t ninstances=1);
@@ -112,12 +116,15 @@ public:
      * can be used to provide named materials. All the primitives of the decoded
      * renderable are assigned the specified default material.
      */
-    static Mesh loadMeshFromBuffer(filament::Engine* engine,
+    template <size_t RenderableInstances=1>
+    static void loadMeshFromBuffer(Mesh<RenderableInstances>& mesh, 
+            filament::Engine* engine,
             void const* data, Callback destructor, void* user,
             filament::MaterialInstance* defaultMaterial,
             size_t ninstances=1);
 };
 
-} // namespace filamesh
+
+}
 
 #endif // TNT_FILAMENT_FILAMESHIO_MESHREADER_H

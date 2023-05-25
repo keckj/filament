@@ -159,10 +159,10 @@ static size_t fileSize(int fd) {
 
 namespace filamesh {
 
-MeshReader::Mesh MeshReader::loadMeshFromFile(filament::Engine* engine, const utils::Path& path,
+template <size_t RenderableInstances>
+void MeshReader::loadMeshFromFile(MeshReader::Mesh<RenderableInstances> &mesh, 
+        filament::Engine* engine, const utils::Path& path,
         MaterialRegistry& materials, size_t ninstances) {
-
-    Mesh mesh;
 
     int fd = open(path.c_str(), O_RDONLY);
 
@@ -176,32 +176,34 @@ MeshReader::Mesh MeshReader::loadMeshFromFile(filament::Engine* engine, const ut
         p += sizeof(MAGICID);
 
         if (!strncmp(MAGICID, magic, 8)) {
-            mesh = loadMeshFromBuffer(engine, data, nullptr, nullptr, materials, ninstances);
+            loadMeshFromBuffer(mesh, engine, data, nullptr, nullptr, materials, ninstances);
         }
 
         Fence::waitAndDestroy(engine->createFence());
         free(data);
     }
     close(fd);
-
-    return mesh;
 }
 
-MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
+template <size_t RenderableInstances>
+void MeshReader::loadMeshFromBuffer(MeshReader::Mesh<RenderableInstances> &mesh,
+        filament::Engine* engine,
         void const* data, Callback destructor, void* user,
         MaterialInstance* defaultMaterial, size_t ninstances) {
     MaterialRegistry reg;
     reg.registerMaterialInstance(utils::CString(DEFAULT_MATERIAL), defaultMaterial);
-    return loadMeshFromBuffer(engine, data, destructor, user, reg, ninstances);
+    return loadMeshFromBuffer(mesh, engine, data, destructor, user, reg, ninstances);
 }
 
-MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
+template <size_t RenderableInstances>
+void MeshReader::loadMeshFromBuffer(MeshReader::Mesh<RenderableInstances> &mesh,
+        filament::Engine* engine,
         void const* data, Callback destructor, void* user,
         MaterialRegistry& materials, size_t ninstances) {
     const uint8_t* p = (const uint8_t*) data;
     if (strncmp(MAGICID, (const char *) p, 8)) {
         utils::slog.e << "Magic string not found." << utils::io::endl;
-        return {};
+        exit(42);
     }
     p += 8;
 
@@ -228,8 +230,6 @@ MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
         p += nameLength + 1; // null terminated
     }
 
-    Mesh mesh;
-
     mesh.indexBuffer = IndexBuffer::Builder()
             .indexCount(header->indexCount)
             .bufferType(header->indexType == UI16 ? IndexBuffer::IndexType::USHORT
@@ -249,7 +249,7 @@ MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
                 indicesSize);
         if (err) {
             utils::slog.e << "Unable to decode index buffer." << utils::io::endl;
-            return {};
+            exit(42);
         }
         if (destructor) {
             destructor((void*) indices, indicesSize, user);
@@ -336,7 +336,7 @@ MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
         }
         if (err) {
             utils::slog.e << "Unable to decode vertex buffer." << utils::io::endl;
-            return {};
+            exit(42);
         }
         if (destructor) {
             destructor((void*) vertexData, verticesSize, user);
@@ -348,8 +348,6 @@ MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
         mesh.vertexBuffer->setBufferAt(*engine, 0,
                 VertexBuffer::BufferDescriptor(vertexData, verticesSize, destructor, user));
     }
-
-    mesh.renderable = utils::EntityManager::get().create();
 
     RenderableManager::Builder builder(header->parts);
     builder.boundingBox(header->aabb);
@@ -381,9 +379,23 @@ MeshReader::Mesh MeshReader::loadMeshFromBuffer(filament::Engine* engine,
     }
 
     builder.instances(ninstances);
-    builder.build(*engine, mesh.renderable);
-
-    return mesh;
+    
+    for(size_t i=0; i<RenderableInstances; ++i) {
+        mesh.renderables[i] = utils::EntityManager::get().create();
+        builder.build(*engine, mesh.renderables[i]);
+    }
 }
+
+template void MeshReader::loadMeshFromBuffer(Mesh<1ul>& mesh, 
+        filament::Engine* engine,
+        void const* data, Callback destructor, void* user,
+        filament::MaterialInstance* defaultMaterial,
+        size_t ninstances);
+
+template void MeshReader::loadMeshFromBuffer(Mesh<32ul>& mesh, 
+        filament::Engine* engine,
+        void const* data, Callback destructor, void* user,
+        filament::MaterialInstance* defaultMaterial,
+        size_t ninstances);
 
 } // namespace filamesh
