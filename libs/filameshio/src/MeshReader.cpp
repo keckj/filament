@@ -159,6 +159,7 @@ static size_t fileSize(int fd) {
 
 namespace filamesh {
 
+#if 0
 template <size_t RenderableInstances>
 void MeshReader::loadMeshFromFile(MeshReader::Mesh<RenderableInstances> &mesh, 
         filament::Engine* engine, const utils::Path& path,
@@ -194,12 +195,13 @@ void MeshReader::loadMeshFromBuffer(MeshReader::Mesh<RenderableInstances> &mesh,
     reg.registerMaterialInstance(utils::CString(DEFAULT_MATERIAL), defaultMaterial);
     return loadMeshFromBuffer(mesh, engine, data, destructor, user, reg, ninstances);
 }
+#endif
 
 template <size_t RenderableInstances>
 void MeshReader::loadMeshFromBuffer(MeshReader::Mesh<RenderableInstances> &mesh,
         filament::Engine* engine,
         void const* data, Callback destructor, void* user,
-        MaterialRegistry& materials, size_t ninstances) {
+        Material* material, size_t ninstances) {
     const uint8_t* p = (const uint8_t*) data;
     if (strncmp(MAGICID, (const char *) p, 8)) {
         utils::slog.e << "Magic string not found." << utils::io::endl;
@@ -351,51 +353,37 @@ void MeshReader::loadMeshFromBuffer(MeshReader::Mesh<RenderableInstances> &mesh,
 
     RenderableManager::Builder builder(header->parts);
     builder.boundingBox(header->aabb);
-
-    const auto defaultmi = materials.getMaterialInstance(utils::CString(DEFAULT_MATERIAL));
-    for (size_t i = 0; i < header->parts; i++) {
-        builder.geometry(i, RenderableManager::PrimitiveType::TRIANGLES,
-                mesh.vertexBuffer, mesh.indexBuffer, parts[i].offset,
-                parts[i].minIndex, parts[i].maxIndex, parts[i].indexCount);
-
-        // It may happen that there are more parts than materials
-        // therefore we have to use Part::material instead of i.
-        uint32_t materialIndex = parts[i].material;
-        if (materialIndex >= partsMaterial.size()) {
-            utils::slog.e << "Material index (" << materialIndex << ") of mesh part ("
-                    << i << ") is out of bounds (" << partsMaterial.size() << ")" << utils::io::endl;
-            continue;
-        }
-
-        const utils::CString materialName(
-                partsMaterial[materialIndex].c_str(), partsMaterial[materialIndex].size());
-        const auto mat = materials.getMaterialInstance(materialName);
-        if (mat == nullptr) {
-            builder.material(i, defaultmi);
-            materials.registerMaterialInstance(materialName, defaultmi);
-        } else {
-            builder.material(i, mat);
-        }
-    }
-
     builder.instances(ninstances);
-    
-    for(size_t i=0; i<RenderableInstances; ++i) {
-        mesh.renderables[i] = utils::EntityManager::get().create();
-        builder.build(*engine, mesh.renderables[i]);
+
+    for(size_t k=0; k<RenderableInstances; ++k) {
+        mesh.renderables[k] = utils::EntityManager::get().create();
+        mesh.materialInstances[k] = material->createInstance();
+        for (size_t i = 0; i < header->parts; i++) {
+            builder.geometry(i, RenderableManager::PrimitiveType::TRIANGLES,
+                    mesh.vertexBuffer, mesh.indexBuffer, parts[i].offset,
+                    parts[i].minIndex, parts[i].maxIndex, parts[i].indexCount);
+            builder.material(i, mesh.materialInstances[k]);
+        }
+        builder.build(*engine, mesh.renderables[k]);
     }
 }
 
 template void MeshReader::loadMeshFromBuffer(Mesh<1ul>& mesh, 
         filament::Engine* engine,
         void const* data, Callback destructor, void* user,
-        filament::MaterialInstance* defaultMaterial,
+        filament::Material* material,
+        size_t ninstances);
+
+template void MeshReader::loadMeshFromBuffer(Mesh<16ul>& mesh, 
+        filament::Engine* engine,
+        void const* data, Callback destructor, void* user,
+        filament::Material* material,
         size_t ninstances);
 
 template void MeshReader::loadMeshFromBuffer(Mesh<32ul>& mesh, 
         filament::Engine* engine,
         void const* data, Callback destructor, void* user,
-        filament::MaterialInstance* defaultMaterial,
+        filament::Material* material,
         size_t ninstances);
 
 } // namespace filamesh

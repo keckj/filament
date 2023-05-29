@@ -20,6 +20,7 @@
 #include <utils/compiler.h>
 #include <utils/Entity.h>
 #include <utils/CString.h>
+#include <filament/Material.h>
 
 namespace filament {
     class Engine;
@@ -80,10 +81,12 @@ public:
     template <size_t RenderableInstances=1>
     struct Mesh {
         utils::Entity renderables[RenderableInstances];
+        filament::MaterialInstance* materialInstances[RenderableInstances];
         filament::VertexBuffer* vertexBuffer = nullptr;
         filament::IndexBuffer* indexBuffer = nullptr;
     };
 
+#if 0
     /**
      * Loads a filamesh renderable from the specified file. The material registry
      * can be used to provide named materials. If a material found in the filamesh
@@ -110,6 +113,7 @@ public:
             void const* data, Callback destructor, void* user,
             MaterialRegistry& materials,
             size_t ninstances=1);
+#endif
 
     /**
      * Loads a filamesh renderable from an in-memory buffer. The material registry
@@ -120,7 +124,7 @@ public:
     static void loadMeshFromBuffer(Mesh<RenderableInstances>& mesh, 
             filament::Engine* engine,
             void const* data, Callback destructor, void* user,
-            filament::MaterialInstance* defaultMaterial,
+            filament::Material* material,
             size_t ninstances=1);
 };
 
